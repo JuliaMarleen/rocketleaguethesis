@@ -71,8 +71,8 @@ def getCSV(CSV_file):
         current_game_id_team = "" # This one is relevant 
         current_color_team = "" # This one is relevant 
         players_in_team = 0 # This one is relevant 
-        weird_numbers = 0 # just checking
         temp_player_list = [] # This one is relevant 
+        weird_numbers = 0 # just checking
 
         for index_player, row in enumerate(playerreader):
             usable_player_data = True
@@ -83,93 +83,99 @@ def getCSV(CSV_file):
             if index_player == 0: # row 0 is column names
                 for item in row:
                     column_names_pro_all.append(item)
-            else:
+            else: # all other rows that are players
+
+#################### Go on with current (new) player #######################################################
+                
+                game_duration = 0.0
                 for index_item, item in enumerate(row):
                     if column_names_pro_all[index_item] == 'game_id':
                         current_game_id_player = item
                         player_dict['game_id'] = item
                     elif column_names_pro_all[index_item] == 'color':
                         current_color_player = item
+
+########################### before processing new line (old data) ##################################################
+
+                        if current_game_id_team == current_game_id_player and current_color_team == current_color_player:
+                            players_in_team += 1 # this one is relevant and counts players per team in same game and same team (new data)
+                        else: # if game or team switches check if last team was okay
+                            # When the team (color) or game (game_id) switches, check if 3 players or more or less
+                            if players_in_team != 3: # when not 3 in one team (more or less than 3)
+                                print("skipped to next team, but not 3 in a team -> so not in team file")
+                                print("players in team",players_in_team)
+                                skipped_teams_not_3 += 1 # just checking
+                                # list_temp = player_list[-players_in_team:] # just checking
+                                del player_list[-players_in_team:] # delete all players in bad data team 
+                            if players_in_team > 3: # when more than 3 in one team
+                                del team_list[-1] # delete last added team, because too much people
+                                print("4 of meeeeer:", players_in_team)
+                                weird_numbers += 1 #just checking 
+                            team_dict = {} # empty team_dict, because we don't want it (if there is still something)
+                            players_in_team = 1 # reset en net gewsitched naar 1e speler
+                            current_game_id_team = current_game_id_player # update game id to new team in new game
+                            current_color_team = current_color_player # update color to new team
+
+
+
                     elif column_names_pro_all[index_item] ==  "_duration":
                         game_duration = float(item)
-                        print(item)
-                        if float(item) < 300:
-                            print("too short")
+                        if game_duration < 300:
+                            print("game duration: ", game_duration)
+                            print("too short") #########################
                             usable_player_data = False
                             usable_team_data = False
                             game_too_short += 1
                     elif column_names_pro_all[index_item] == "players_end_time":
-                        print(item, game_duration)
-                        if float(item) < game_duration:
-                            print(item, game_duration)
+                        played_time = float(item) 
+                        # print("end time?",played_time, game_duration)
+                        if played_time < game_duration:
+                            print("game duration2 too short",played_time, game_duration)
                             usable_player_data = False
                             usable_team_data = False
-                            played_too_short += 1
-                    
-                    # if 'percentage'
-
+                            played_too_short += 1 ############################
                     elif column_names_pro_all[index_item] in column_names_pro or column_names_pro_all[index_item] in column_names_rank:
                         if item == "":
                             usable_player_data = False
                             usable_team_data = False
                         elif column_names_pro_all[index_item] ==  "player_tag":
                             player_dict['player_tag'] = item
-                        elif column_names_pro_all[index_item] == 'winner':
+                        elif column_names_pro_all[index_item] == 'winner': # for the professional games that do not have "pro"
                             if 'pro' not in column_names_pro_all:
                                 player_dict['pro'] = True
                             player_dict[column_names_pro_all[index_item]] = item
-                            if (players_in_team % 3) == 0:
+                            if players_in_team == 3:
                                 if 'pro' not in column_names_pro_all:
                                     team_dict['pro'] = True
                                 team_dict[column_names_pro_all[index_item]] = item
-                        elif column_names_pro_all[index_item] == 'pro':
+                        elif column_names_pro_all[index_item] == 'pro': # for the ranked games that do have "pro"
                             player_dict[column_names_pro_all[index_item]] = item
-                            team_dict[f"{column_names_pro_all[index_item]}_{players_in_team % 3}"] = item
+                            if players_in_team == 3:
+                                team_dict[column_names_pro_all[index_item]] = item # just once per team, not per player
                         elif column_names_pro_all[index_item] ==  "positioning_time_in_front_ball":
                             player_dict["positioning_time_infront_ball"] = round(float(item), 2)
-                            team_dict[f"positioning_time_infront_ball_{players_in_team % 3}"] = round(float(item), 2)
+                            team_dict[f"positioning_time_infront_ball_{players_in_team}"] = round(float(item), 2)
                         elif column_names_pro_all[index_item] ==  "positioning_percent_in_front_ball":
                             player_dict["positioning_percent_infront_ball"] = round(float(item), 2)
-                            team_dict[f"positioning_percent_infront_ball_{players_in_team % 3}"] = round(float(item), 2)
+                            team_dict[f"positioning_percent_infront_ball_{players_in_team}"] = round(float(item), 2)
                         else:
                             if "percent" in column_names_pro_all[index_item]:
                                 if float(item) > 100:
                                     usable_player_data = False
                                     usable_team_data = False
                                     players_above_100 +=1
-                                    print(item)
+                                    print("percentage",item)
                             player_dict[column_names_pro_all[index_item]] = round(float(item), 2)
-                            team_dict[f"{column_names_pro_all[index_item]}_{players_in_team % 3}"] = round(float(item), 2)
-                
-                if current_game_id_team == current_game_id_player and current_color_team == current_color_player:
-                    players_in_team += 1 # this one is relevant and counts players per team
-                else:
-                    # When the team (color) or game (game_id) switches, check if 3 players
-                    if players_in_team != 3: # when not 3 in one team (more or less than 3)
-                        print("skipped to next team, but not 3 in a team -> so not in team file")
-                        print(players_in_team)
-                        # print(row[0])
-                        skipped_teams_not_3 += 1 # just checking
-                        # list_temp = player_list[-players_in_team:] # just checking
-                        del player_list[-players_in_team:] # 
+                            team_dict[f"{column_names_pro_all[index_item]}_{players_in_team}"] = round(float(item), 2)
 
-                        # for player_temp in list_temp:
-                        #     print(player_temp["player_tag"]) # just checking
 
-                    if players_in_team > 3: # when more than 3 in one team
-                        # print("DELETE", team_list[-1])
-                        del team_list[-1],
 
-                        print("4 of meeeeer:", players_in_team)
-                        weird_numbers += 1 #just checking 
 
-                    players_in_team = 1 # reset
-                    current_game_id_team = current_game_id_player # update game id
-                    current_color_team = current_color_player # updat color
-                    team_dict = {} # empty team_dict, because we don't want it
+########################### new player processing #################################################################
+
+                print(players_in_team)
 
                 if usable_player_data == True: # player data is good
-                # if usable_player_data == True: # player data is good
                     temp_player_list.append(dict(player_dict))
                     good_players += 1 # just checking
                 else: # player data is bad
@@ -188,7 +194,7 @@ def getCSV(CSV_file):
                     temp_player_list = [] # reset variable
                     usable_team_data = True # reset variable
 
-                ####################################
+#################################### JUST CHECKS #######################################################
                 elif players_in_team == 2: #just tests
                     team_mates_two += 1 # just checking
                 elif players_in_team == 1: # just checking
@@ -220,74 +226,88 @@ if __name__ == "__main__":
     dictPro = getCSV('archive/games_by_players.csv') # uses CSV
     dictAPI = getCSV('games_by_players_API_ranked3.csv') # uses CSV -> with 2 is grand-champion-1
 
-    ######### games_by_player ranked & pro
-    with open('games_by_players_all.csv', 'w', newline='') as csvfile:
-        fieldnames = column_names_rank
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
-        writer.writeheader()
-        for player in dictAPI[1]:
-            writer.writerow(player)
-        for player in dictPro[1]:
-            writer.writerow(player)
+    # ######### games_by_player ranked & pro
+    # with open('games_by_players_all.csv', 'w', newline='') as csvfile:
+    #     fieldnames = column_names_rank
+    #     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+    #     writer.writeheader()
+    #     for player in dictAPI[1]:
+    #         writer.writerow(player)
+    #     for player in dictPro[1]:
+    #         writer.writerow(player)
     
+
     ######### games_by_team ranked & pro
-    with open('games_by_team_all.csv', 'w', newline='') as csvfile:
+    with open('games_by_team_all_added_features.csv', 'w', newline='') as csvfile:
         all_keys = []
         for d in dictAPI[0]: # get keys that I used/made from API data for team: 3 players + winner + pro
             for key in d.keys():
+                print("key in csv ophalen")
                 if key not in all_keys:
                     all_keys.append(key)
         writer = csv.DictWriter(csvfile, fieldnames=all_keys)
 
         writer.writeheader()
         for team in dictAPI[0]:
+            print("dict api")
             writer.writerow(team)
         for team in dictPro[0]:
+            print("dict pro")
             writer.writerow(team)
     
-    ######### make games_by_player_ranked
-    with open('games_by_players_ranked.csv', 'w', newline='') as csvfile:
-        fieldnames = column_names_rank
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
-        writer.writeheader()
-        for player in dictAPI[1]:
-            writer.writerow(player)
-    
-    ######### make games_by_player_pro
-    with open('games_by_players_pro.csv', 'w', newline='') as csvfile:
-        fieldnames = column_names_rank
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
-        writer.writeheader()
-        for player in dictPro[1]:
-            writer.writerow(player)
+    # ######### make games_by_player_ranked
+    # with open('games_by_players_ranked.csv', 'w', newline='') as csvfile:
+    #     fieldnames = column_names_rank
+    #     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+    #     writer.writeheader()
+    #     for player in dictAPI[1]:
+    #         writer.writerow(player)
     
+
+
+    # ######### make games_by_player_pro
+    # with open('games_by_players_pro.csv', 'w', newline='') as csvfile:
+    #     fieldnames = column_names_rank
+    #     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+    #     writer.writeheader()
+    #     for player in dictPro[1]:
+    #         writer.writerow(player)
+    
+
+
+
     ######## make games_by_team_ranked
-    with open('games_by_team_ranked.csv', 'w', newline='') as csvfile:
+    with open('games_by_team_ranked_added_features.csv', 'w', newline='') as csvfile:
         all_keys = []
         for d in dictAPI[0]: # get keys that I used/made from API data for team: 3 players + winner + pro
             for key in d.keys():
+                print("key dict ranked")
                 if key not in all_keys:
                     all_keys.append(key)
         writer = csv.DictWriter(csvfile, fieldnames=all_keys)
 
         writer.writeheader()
         for team in dictAPI[0]:
+            print("dict api ranked")
             writer.writerow(team)
     
     ######## make games_by_team_pro
-    with open('games_by_team_pro.csv', 'w', newline='') as csvfile:
+    with open('games_by_team_pro_added_features.csv', 'w', newline='') as csvfile:
         all_keys = []
         for d in dictAPI[0]: # get keys that I used/made from API data for team: 3 players + winner + pro
             for key in d.keys():
+                print("key dict pro")
                 if key not in all_keys:
                     all_keys.append(key)
         writer = csv.DictWriter(csvfile, fieldnames=all_keys)
 
         writer.writeheader()
         for team in dictPro[0]:
+            print("dict pro")
             writer.writerow(team)
-
-    # ## to all put seperately in the model -> why? what can I learn?
